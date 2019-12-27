@@ -1,0 +1,113 @@
+PODS:
+  - Alamofire (4.9.1)
+  - AlamofireImage (3.6.0):
+    - Alamofire (~> 4.9)
+  - CropViewController (2.5.2)
+  - DKCamera (1.6.6)
+  - DKImagePickerController (4.1.7):
+    - DKImagePickerController/Camera (= 4.1.7)
+    - DKImagePickerController/Core (= 4.1.7)
+    - DKImagePickerController/ImageDataManager (= 4.1.7)
+    - DKImagePickerController/InlineCamera (= 4.1.7)
+    - DKImagePickerController/PhotoEditor (= 4.1.7)
+    - DKImagePickerController/PhotoGallery (= 4.1.7)
+    - DKImagePickerController/Resource (= 4.1.7)
+  - DKImagePickerController/Camera (4.1.7):
+    - DKCamera
+    - DKImagePickerController/Core
+  - DKImagePickerController/Core (4.1.7):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.1.7)
+  - DKImagePickerController/InlineCamera (4.1.7):
+    - DKCamera
+    - DKImagePickerController/Core
+  - DKImagePickerController/PhotoEditor (4.1.7):
+    - CropViewController (~> 2.4)
+    - DKImagePickerController/Core
+  - DKImagePickerController/PhotoGallery (4.1.7):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.1.7)
+  - DKPhotoGallery (0.0.14):
+    - DKPhotoGallery/Core (= 0.0.14)
+    - DKPhotoGallery/Model (= 0.0.14)
+    - DKPhotoGallery/Preview (= 0.0.14)
+    - DKPhotoGallery/Resource (= 0.0.14)
+    - SDWebImage
+    - SDWebImageFLPlugin
+  - DKPhotoGallery/Core (0.0.14):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SDWebImageFLPlugin
+  - DKPhotoGallery/Model (0.0.14):
+    - SDWebImage
+    - SDWebImageFLPlugin
+  - DKPhotoGallery/Preview (0.0.14):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SDWebImageFLPlugin
+  - DKPhotoGallery/Resource (0.0.14):
+    - SDWebImage
+    - SDWebImageFLPlugin
+  - FLAnimatedImage (1.0.12)
+  - IQKeyboardManagerSwift (6.5.4)
+  - ObjectMapper (3.5.1)
+  - QuickLayout (2.1.1)
+  - SDWebImage (5.3.1):
+    - SDWebImage/Core (= 5.3.1)
+  - SDWebImage/Core (5.3.1)
+  - SDWebImageFLPlugin (0.3.0):
+    - FLAnimatedImage (>= 1.0.11)
+    - SDWebImage/Core (~> 5.0)
+  - SwiftEntryKit (0.8.2):
+    - QuickLayout (= 2.1.1)
+  - SwiftyJSON (4.2.0)
+
+DEPENDENCIES:
+  - Alamofire (~> 4.6)
+  - AlamofireImage (~> 3.4)
+  - DKImagePickerController (~> 4.1.4)
+  - IQKeyboardManagerSwift
+  - ObjectMapper
+  - SwiftEntryKit (= 0.8.2)
+  - SwiftyJSON (~> 4.2.0)
+
+SPEC REPOS:
+  https://github.com/CocoaPods/Specs.git:
+    - Alamofire
+    - AlamofireImage
+    - CropViewController
+    - DKCamera
+    - DKImagePickerController
+    - DKPhotoGallery
+    - FLAnimatedImage
+    - IQKeyboardManagerSwift
+    - ObjectMapper
+    - QuickLayout
+    - SDWebImage
+    - SDWebImageFLPlugin
+    - SwiftEntryKit
+    - SwiftyJSON
+
+SPEC CHECKSUMS:
+  Alamofire: 85e8a02c69d6020a0d734f6054870d7ecb75cf18
+  AlamofireImage: be9963c6582d68b39e89191f64c82a7d7bf40fdd
+  CropViewController: 1aac40093c5739e60d992b04724a55d12a689a4c
+  DKCamera: d6fad4db4b25c00eefe6904e9c86a926034d0c62
+  DKImagePickerController: 6ffad961c212b0debf644f3d1aa72d0a2ee03d5f
+  DKPhotoGallery: 0290d32343574f06eaa4c26f8f2f8a1035e916be
+  FLAnimatedImage: 4a0b56255d9b05f18b6dd7ee06871be5d3b89e31
+  IQKeyboardManagerSwift: 2dde0fc70110e8eac7ccce2a46fdbec6a850b414
+  ObjectMapper: 70187b8941977c62ccfb423caf6b50be405cabf0
+  QuickLayout: 9af2b7fd89a6552828f51a5aba28d1bcdb8b340c
+  SDWebImage: 7137d57385fb632129838c1e6ab9528a22c666cc
+  SDWebImageFLPlugin: cf3f4ae49f249dd785129346fd61bbc8433a88cf
+  SwiftEntryKit: c3782ddda1ccbd35899d5f9bfad1c3ab9c823e2a
+  SwiftyJSON: c4bcba26dd9ec7a027fc8eade48e2c911f229e96
+
+PODFILE CHECKSUM: 8dbb29794addf3541726f715119a4b4f78c9b541
+
+COCOAPODS: 1.8.4

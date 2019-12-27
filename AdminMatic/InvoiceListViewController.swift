@@ -1,0 +1,394 @@
+//
+//  InvoiceListViewController.swift
+//  AdminMatic2
+//
+//  Created by Nick on 1/27/19.
+//  Copyright © 2019 Nick. All rights reserved.
+//
+
+//  Edited for safeView
+
+
+import Foundation
+import UIKit
+import Alamofire
+//import SwiftyJSON
+
+/*
+ Status
+ 0 = syncing to QB
+ 1 = pending
+ 2 = final
+ 3 = sent (printed/emailed)
+ 4 = paid
+ 5 = void
+ */
+
+protocol InvoiceListDelegate{
+    func updateInvoice(_atIndex:Int,_status:String)
+    
+}
+
+class InvoiceListViewController: ViewControllerWithMenu, UISearchControllerDelegate, UISearchBarDelegate, UISearchDisplayDelegate, UISearchResultsUpdating, UITableViewDelegate, UITableViewDataSource, InvoiceListDelegate, NoInternetDelegate{
+    
+    var indicator: SDevIndicator!
+    var layoutVars:LayoutVars = LayoutVars()
+    var searchController:UISearchController!
+    
+    var invoiceArray:InvoiceArray = InvoiceArray(_invoices: [])
+    var invoiceSearchResults:InvoiceArray = InvoiceArray(_invoices: [])
+    var shouldShowSearchResults:Bool = false
+    
+    var invoiceTableView: TableView!
+    var countView:UIView = UIView()
+    var countLbl:Label = Label()
+    var addInvoiceBtn:Button = Button(titleText: "Add New Invoice")
+    var invoiceSettingsBtn:Button = Button(titleText: "")
+    let settingsIcon:UIImageView = UIImageView()
+    let settingsImg = UIImage(named:"settingsIcon.png")
+    let settingsEditedImg = UIImage(named:"settingsEditedIcon.png")
+    
+    //settings
+    var salesRep:String = ""
+    var salesRepName:String = ""
+    var custID:String = ""
+    var custName:String = ""
+    var startDate:String = ""
+    var endDate:String = ""
+    var sort:String = "0"
+    var status:String = ""
+    
+    var invoiceViewController:InvoiceViewController!
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Do any additional setup after loading the view.
+        view.backgroundColor = layoutVars.backgroundColor
+        showLoadingScreen()
+    }
+    
+    func showLoadingScreen(){
+        title = "Loading..."
+        indicator = SDevIndicator.generate(self.view)!
+        getInvoices()
+    }
+    
+    
+    func getInvoices(){
+        print("getInvoices")
+        
+        if CheckInternet.Connection() != true{
+            self.layoutVars.showNoInternetVC(_navController:self.appDelegate.navigationController, _delegate: self)
+            return
+        }
+        
+        self.invoiceArray.invoices = []
+        
+       
+        //Get lead list
+        var parameters:[String:String]
+        parameters = ["status":self.status,"salesRep":self.salesRep,"custID":self.custID,"startDate":self.startDate,"endDate":self.endDate,"sort":self.sort,"sessionKey": self.appDelegate.defaults.string(forKey: loggedInKeys.sessionKey)!, "companyUnique": self.appDelegate.defaults.string(forKey: loggedInKeys.companyUnique)!]
+        print("parameters = \(parameters)")
+        
+        self.layoutVars.manager.request("https://www.adminmatic.com/cp/app/functions/get/invoices.php",method: .post, parameters: parameters, encoding: URLEncoding.default, headers: nil)
+            .validate()    // or, if you just want to check status codes, validate(statusCode: 200..<300)
+            .responseString { response in
+                print("invoice response")
+            }
+            .responseJSON() {
+                response in
+                
+                do{
+                    //created the json decoder
+                    let json = response.data
+                    let decoder = JSONDecoder()
+                    let parsedData = try decoder.decode(InvoiceArray.self, from: json!)
+                    print("parsedData = \(parsedData)")
+                    let invoices = parsedData
+                    let invoiceCount = invoices.invoices.count
+                    print("invoice count = \(invoiceCount)")
+                    
+                    for i in 0 ..< invoiceCount {
+                        invoices.invoices[i].totalPrice = self.layoutVars.numberAsCurrency(_number: invoices.invoices[i].totalPrice)
+                        //create an object
+                        print("create a invoice object \(i)")
+                        self.invoiceArray.invoices.append(invoices.invoices[i])
+                    }
+                
+                    self.indicator.dismissIndicator()
+                    self.layoutViews()
+            
+                }catch let err{
+                    print(err)
+                }
+        }
+    }
+    
+    
+    func layoutViews(){
+        print("Layout Views")
+        
+        self.view.subviews.forEach({ $0.removeFromSuperview() }) // this gets things done
+        
+        title = "Invoice List"
+        
+        searchController = UISearchController(searchResultsController: nil)
+        searchController.searchBar.placeholder = "Search Invoices"
+        searchController.searchResultsUpdater = self
+        searchController.delegate = self
+        searchController.searchBar.delegate = self
+        
+        searchController.dimsBackgroundDuringPresentation = false
+        searchController.hidesNavigationBarDuringPresentation = false
+        searchController.searchBar.barTintColor = layoutVars.buttonBackground
+        
+        //workaround for ios 11 larger search bar
+        let searchBarContainer = SearchBarContainerView(customSearchBar: searchController.searchBar)
+        searchBarContainer.frame = CGRect(x: 0, y: 0, width: view.frame.width, height: 44)
+        navigationItem.titleView = searchBarContainer
+        
+        //set container to safe bounds of view
+        let safeContainer:UIView = UIView()
+        safeContainer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(safeContainer)
+        safeContainer.leftAnchor.constraint(equalTo: view.safeLeftAnchor).isActive = true
+        safeContainer.topAnchor.constraint(equalTo: view.safeTopAnchor).isActive = true
+        safeContainer.widthAnchor.constraint(equalToConstant: self.view.frame.width).isActive = true
+        safeContainer.bottomAnchor.constraint(equalTo: view.safeBottomAnchor).isActive = true
+        
+        self.invoiceTableView =  TableView()
+        
+        self.invoiceTableView.delegate  =  self
+        self.invoiceTableView.dataSource  =  self
+        self.invoiceTableView.rowHeight = 60.0
+        self.invoiceTableView.register(InvoiceTableViewCell.self, forCellReuseIdentifier: "cell")
+        safeContainer.addSubview(self.invoiceTableView)
+       
+        self.countView = UIView()
+        self.countView.backgroundColor = layoutVars.backgroundColor
+        self.countView.translatesAutoresizingMaskIntoConstraints = false
+        safeContainer.addSubview(self.countView)
+        
+        self.countLbl.translatesAutoresizingMaskIntoConstraints = false
+        
+        self.countView.addSubview(self.countLbl)
+        
+        
+        let viewsDictionary = [
+            "invoiceTable":self.invoiceTableView,
+            "countView":self.countView
+            ] as [String : Any]
+        let sizeVals = ["width": layoutVars.fullWidth,"height": self.view.frame.size.height ,"navBarHeight":self.layoutVars.navAndStatusBarHeight] as [String : Any]
+        
+        //////////////   auto layout position constraints   /////////////////////////////
+        safeContainer.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[invoiceTable(width)]|", options: [], metrics: sizeVals, views: viewsDictionary))
+        safeContainer.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[countView(width)]|", options: [], metrics: sizeVals, views: viewsDictionary))
+       
+        safeContainer.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[invoiceTable][countView(30)]|", options: [], metrics: sizeVals, views: viewsDictionary))
+        safeContainer.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[invoiceTable][countView(30)]|", options: [], metrics: sizeVals, views: viewsDictionary))
+        let viewsDictionary2 = [
+            "countLbl":self.countLbl
+            ] as [String : Any]
+        
+        //////////////   auto layout position constraints   /////////////////////////////
+        self.countView.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|-10-[countLbl]|", options: [], metrics: sizeVals, views: viewsDictionary2))
+        self.countView.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|-[countLbl(20)]", options: [], metrics: sizeVals, views: viewsDictionary2))
+    }
+    
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        filterSearchResults()
+    }
+    
+    func filterSearchResults(){
+        
+        print("filterSearchResults")
+        self.invoiceSearchResults.invoices = []
+        
+        self.invoiceSearchResults.invoices = self.invoiceArray.invoices.filter({( aInvoice: Invoice2) -> Bool in
+            
+          //search by 4 fields (ID, customerName, date, totalPrice)
+            
+            return (aInvoice.customerName.lowercased().range(of: self.searchController.searchBar.text!.lowercased()) != nil  || aInvoice.ID.lowercased().range(of: self.searchController.searchBar.text!.lowercased()) != nil || aInvoice.date.lowercased().range(of: self.searchController.searchBar.text!.lowercased()) != nil || aInvoice.totalPrice.lowercased().range(of: self.searchController.searchBar.text!.lowercased()) != nil)
+        })
+        
+        self.invoiceTableView.reloadData()
+    }
+    
+   
+    func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
+        //print("searchBarTextDidBeginEditing")
+        shouldShowSearchResults = true
+        self.invoiceTableView.reloadData()
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        shouldShowSearchResults = false
+        self.invoiceTableView.reloadData()
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        if !shouldShowSearchResults {
+            shouldShowSearchResults = true
+            self.invoiceTableView.reloadData()
+        }
+        searchController.searchBar.resignFirstResponder()
+    }
+    
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 0
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int{
+        if shouldShowSearchResults{
+            self.countLbl.text = "\(self.invoiceSearchResults.invoices.count) Invoice(s) Found"
+            return self.invoiceSearchResults.invoices.count
+        } else {
+            self.countLbl.text = "\(self.invoiceArray.invoices.count) Invoices(s) "
+            return self.invoiceArray.invoices.count
+        }
+    }
+    
+    
+    internal func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell{
+        print("cellForRowAt")
+        let cell:InvoiceTableViewCell = invoiceTableView.dequeueReusableCell(withIdentifier: "cell") as! InvoiceTableViewCell
+        if shouldShowSearchResults{
+            cell.invoice = self.invoiceSearchResults.invoices[indexPath.row]
+            let searchString = self.searchController.searchBar.text!.lowercased()
+            let baseString1:NSString = cell.invoice.customerName as NSString
+            let highlightedText1 = NSMutableAttributedString(string: cell.invoice.customerName)
+            var error1: NSError?
+            let regex1: NSRegularExpression?
+            do {
+                regex1 = try NSRegularExpression(pattern: searchString, options: .caseInsensitive)
+            } catch let error1a as NSError {
+                error1 = error1a
+                regex1 = nil
+            }
+            if let regexError1 = error1 {
+                print("Oh no! \(regexError1)")
+            } else {
+                for match in (regex1?.matches(in: baseString1 as String, options: NSRegularExpression.MatchingOptions(), range: NSRange(location: 0, length: baseString1.length)))! as [NSTextCheckingResult] {
+                    highlightedText1.addAttribute(NSAttributedString.Key.backgroundColor, value: UIColor.yellow, range: match.range)
+                }
+            }
+            cell.titleLbl.attributedText = highlightedText1
+            
+            let baseString2:NSString = cell.invoice.ID as NSString
+            let highlightedText2 = NSMutableAttributedString(string: cell.invoice.ID)
+            var error2: NSError?
+            let regex2: NSRegularExpression?
+            do {
+                regex2 = try NSRegularExpression(pattern: searchString, options: .caseInsensitive)
+            } catch let error2a as NSError {
+                error2 = error2a
+                regex2 = nil
+            }
+            if let regexError2 = error2 {
+                print("Oh no! \(regexError2)")
+            } else {
+                for match in (regex2?.matches(in: baseString2 as String, options: NSRegularExpression.MatchingOptions(), range: NSRange(location: 0, length: baseString2.length)))! as [NSTextCheckingResult] {
+                    highlightedText2.addAttribute(NSAttributedString.Key.backgroundColor, value: UIColor.yellow, range: match.range)
+                }
+                
+            }
+            
+            cell.IDLbl.attributedText = highlightedText2
+            
+            let baseString3:NSString = cell.invoice.date as NSString
+            let highlightedText3 = NSMutableAttributedString(string: cell.invoice.date)
+            var error3: NSError?
+            let regex3: NSRegularExpression?
+            do {
+                regex3 = try NSRegularExpression(pattern: searchString, options: .caseInsensitive)
+            } catch let error3a as NSError {
+                error3 = error3a
+                regex3 = nil
+            }
+            if let regexError3 = error3 {
+                print("Oh no! \(regexError3)")
+            } else {
+                for match in (regex3?.matches(in: baseString3 as String, options: NSRegularExpression.MatchingOptions(), range: NSRange(location: 0, length: baseString3.length)))! as [NSTextCheckingResult] {
+                    highlightedText3.addAttribute(NSAttributedString.Key.backgroundColor, value: UIColor.yellow, range: match.range)
+                }
+            }
+            
+            cell.dateLbl.attributedText = highlightedText3
+            
+            
+            let baseString4:NSString = cell.invoice.totalPrice as NSString
+            let highlightedText4 = NSMutableAttributedString(string: cell.invoice.totalPrice)
+            var error4: NSError?
+            let regex4: NSRegularExpression?
+            do {
+                regex4 = try NSRegularExpression(pattern: searchString, options: .caseInsensitive)
+            } catch let error4a as NSError {
+                error4 = error4a
+                regex4 = nil
+            }
+            if let regexError4 = error4 {
+                print("Oh no! \(regexError4)")
+            } else {
+                for match in (regex4?.matches(in: baseString4 as String, options: NSRegularExpression.MatchingOptions(), range: NSRange(location: 0, length: baseString4.length)))! as [NSTextCheckingResult] {
+                    highlightedText4.addAttribute(NSAttributedString.Key.backgroundColor, value: UIColor.yellow, range: match.range)
+                }
+                
+            }
+            cell.totalLbl.attributedText = highlightedText4
+            cell.setStatus(status: cell.invoice.status)
+            
+        } else {
+            print("count = \(self.invoiceArray.invoices.count)")
+            cell.layoutViews()
+            cell.invoice = self.invoiceArray.invoices[indexPath.row]
+            
+            cell.titleLbl.text = self.invoiceArray.invoices[indexPath.row].customerName
+            cell.totalLbl.text = self.invoiceArray.invoices[indexPath.row].totalPrice
+            cell.IDLbl.text = self.invoiceArray.invoices[indexPath.row].ID
+            cell.dateLbl.text = self.invoiceArray.invoices[indexPath.row].date
+            cell.setStatus(status: self.invoiceArray.invoices[indexPath.row].status)
+        }
+        return cell;
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        print("You selected cell #\(indexPath.row)!")
+        let indexPath = tableView.indexPathForSelectedRow;
+        let currentCell = tableView.cellForRow(at: indexPath!) as! InvoiceTableViewCell;
+        self.invoiceViewController = InvoiceViewController(_invoice: currentCell.invoice)
+        self.invoiceViewController.delegate = self
+        self.invoiceViewController.index = indexPath?.row
+        
+        tableView.deselectRow(at: indexPath!, animated: true)
+       navigationController?.pushViewController(self.invoiceViewController, animated: false )
+    }
+    
+    func updateInvoice(_atIndex:Int,_status:String){
+        self.invoiceArray.invoices[_atIndex].status  = _status
+        self.invoiceTableView.reloadData()
+    }
+   
+    
+    func goBack(){
+        _ = navigationController?.popViewController(animated: false)
+    }
+    
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
+    //for No Internet recovery
+       func reloadData() {
+           print("No Internet Recovery")
+        getInvoices()
+       }
+    
+    
+}
+
+
